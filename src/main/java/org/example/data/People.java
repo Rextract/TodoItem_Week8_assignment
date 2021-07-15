@@ -7,7 +7,7 @@ import java.util.Collection;
 public interface People {
 
     static People getInstance(){
-        return PeopleImpl.getInstance();
+        return getInstance();
     }
 
     Person create(Person person);

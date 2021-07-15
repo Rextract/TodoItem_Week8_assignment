@@ -1,49 +1,50 @@
 package org.example.model;
 
 public class Person {
+    int id;
+    String firstName;
+    String lastName;
 
-    private int personId;
-    private String firstname;
-    private String lastname;
-
-    public Person(int personId, String firstname, String lastname) {
-        this.personId = personId;
-        this.firstname = firstname;
-        this.lastname = lastname;
+    public Person(int id, String firstName, String lastName) {
+        this.id = id;
+        this.firstName = firstName;
+        this.lastName = lastName;
     }
 
-    public Person (String firstname, String lastname){
-        this(0, firstname, lastname);
+    public Person(String firstName, String lastName) {
+        this(0, firstName, lastName);
     }
 
-    Person(){}
-
-    public int getPersonId() {
-        return personId;
+    public int getId() {
+        return id;
     }
 
-    public String getFirstname() {
-        return firstname;
+    public void setId(int id) {
+        this.id = id;
     }
 
-    public void setFirstname(String firstname) {
-        this.firstname = firstname;
+    public String getFirstName() {
+        return firstName;
     }
 
-    public String getLastname() {
-        return lastname;
+    public void setFirstName(String firstName) {
+        this.firstName = firstName;
     }
 
-    public void setLastname(String lastname) {
-        this.lastname = lastname;
+    public String getLastName() {
+        return lastName;
+    }
+
+    public void setLastName(String lastName) {
+        this.lastName = lastName;
     }
 
     @Override
     public String toString() {
         return "Person{" +
-                "personId=" + personId +
-                ", firstname='" + firstname + '\'' +
-                ", lastname='" + lastname + '\'' +
+                "id=" + id +
+                ", firstName='" + firstName + '\'' +
+                ", lastName='" + lastName + '\'' +
                 '}';
     }
 }

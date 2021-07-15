@@ -7,57 +7,52 @@ import java.util.*;
 
 public class PeopleImpl extends AbstractDAOHelper implements People {
 
-    private static final PeopleImpl INSTANCE = new PeopleImpl();
+    private static String URL = "jdbc:mysql://localhost:3306/todoit?&autoReconnect=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Europe/Berlin";
+    private static String USER = "root";
+    private static String PASSWORD = "password";
 
-    private PeopleImpl(){}
-
-    protected static PeopleImpl getInstance(){
-        return INSTANCE;
+    public static Connection getConnection() throws SQLException {
+        return DriverManager.getConnection(URL, USER, PASSWORD);
     }
-
 
     @Override
     public Person create(Person person) {
-        if (person == null) throw new IllegalArgumentException("Person person was null");
-        if (person.getPersonId() != 0) throw new IllegalArgumentException("Person person is already created");
-        if (person.getFirstname() != null) {
-            if (person.getLastname() != null) {
-            }
-        } else {
-            throw new IllegalArgumentException("It was null");
-        }
+        if(person == null) throw new IllegalArgumentException("Person was null");
+        if(person.getId() != 0) throw new IllegalArgumentException("Person is already persisted");
 
-        Person created = null;
         Connection connection = null;
         PreparedStatement statement = null;
         ResultSet resultSet = null;
-        try {
-            connection = ConnectionFactory.getConnection();
-            statement = connection.prepareStatement("INSERT INTO person(person_id, first_name, last_name) VALUES (?,?,?)", Statement.RETURN_GENERATED_KEYS);
-            statement.setString(1, person.getFirstname());
-            statement.setString(2, person.getLastname());
-            statement.setInt(3, person.getPersonId());
+        Person created = null;
+        try{
+            connection = getConnection();
+            statement = connection.prepareStatement("INSERT INTO person (first_name, last_name) VALUES(?, ?)", Statement.RETURN_GENERATED_KEYS);
+            statement.setString(1, person.getFirstName());
+            statement.setString(2, person.getLastName());
             statement.execute();
 
             resultSet = statement.getGeneratedKeys();
-            while (resultSet.next()) {
+            while(resultSet.next()){
                 created = new Person(
-
-                        person.getPersonId(),
-                        person.getFirstname(),
-                        person.getLastname()
+                        resultSet.getInt(1),
+                        person.getFirstName(),
+                        person.getLastName()
                 );
             }
-        } catch (SQLException ex) {
-            ex.printStackTrace();
-        } finally {
-            closeAll(resultSet, statement, connection);
+        } catch (SQLException exception) {
+            exception.printStackTrace();
+        }finally {
+            try {
+                assert resultSet != null;
+                resultSet.close();
+                statement.close();
+                connection.close();
+            } catch (SQLException exception) {
+                exception.printStackTrace();
+            }
         }
         return created;
-
     }
-
-
 
     @Override
     public Collection<Person> findAll() {
@@ -65,23 +60,30 @@ public class PeopleImpl extends AbstractDAOHelper implements People {
         Connection connection = null;
         Statement statement = null;
         ResultSet resultSet = null;
-        try {
-            connection = ConnectionFactory.getConnection();
+        try{
+            connection = getConnection();
             statement = connection.createStatement();
-            resultSet = statement.executeQuery("SELECT person.person_id AS personId, first_name, last_name, todo_item.todo_id AS title, description, deadline, done, assignee_id " +
-                    "FROM person INNER JOIN todo_item ON person.person_id = todo_item.todo_id");
-
+            resultSet = statement.executeQuery("SELECT * FROM person");
             while (resultSet.next()){
-                personList.add(resultSetToPerson(resultSet));
+                Person person = new Person(
+                        resultSet.getInt(1),
+                        resultSet.getString(2),
+                        resultSet.getString(3));
+                personList.add(person);
             }
 
-        } catch (SQLException ex){
-            ex.printStackTrace();
+        } catch (SQLException exception) {
+            exception.printStackTrace();
         }finally {
-            closeAll(resultSet, statement, connection);
+            try {
+                assert resultSet != null;
+                resultSet.close();
+                statement.close();
+                connection.close();
+            } catch (SQLException exception) {
+                exception.printStackTrace();
+            }
         }
-
-
         return personList;
     }
 
@@ -91,88 +93,108 @@ public class PeopleImpl extends AbstractDAOHelper implements People {
         Connection connection = null;
         PreparedStatement statement = null;
         ResultSet resultSet = null;
-        try {
-            connection = ConnectionFactory.getConnection();
-            statement = connection.prepareStatement("SELECT person.person_id AS personId, first_name, last_name, todo_item.todo_id " +
-                    "AS todoId, title, description, deadline, done, assignee_id " +
-                    "FROM person INNER JOIN todo_item ON person.person_id = person.person_id WHERE person.person_id = ?");
-
+        try{
+            connection = getConnection();
+            statement = connection.prepareStatement("SELECT person_id, first_name, last_name FROM person WHERE person_id = ?");
             statement.setInt(1, id);
             resultSet = statement.executeQuery();
-            while (resultSet.next()){
-                person = resultSetToPerson(resultSet);
+            while(resultSet.next()){
+                person = new Person(
+                        resultSet.getInt(1),
+                        resultSet.getString(2),
+                        resultSet.getString(3));
             }
-        }catch (SQLException ex){
-            ex.printStackTrace();
+        }catch (SQLException exception){
+            exception.printStackTrace();
         }finally {
-            closeAll(resultSet, statement, connection);
+            try {
+                assert resultSet != null;
+                resultSet.close();
+                statement.close();
+                connection.close();
+            } catch (SQLException exception) {
+                exception.printStackTrace();
+            }
         }
-
-        return Collections.singleton(person);
+        return (Collection<Person>) person;
     }
 
     @Override
-    public Collection<Person> findByName(String name) {
-        Collection<Person> people = new ArrayList<>();
+    public Collection<Person> findByName(String inputName) {
+        List<Person> personList = new ArrayList<>();
+        Person person;
         Connection connection = null;
         PreparedStatement statement = null;
         ResultSet resultSet = null;
-
-        try {
-            connection = ConnectionFactory.getConnection();
-            statement = connection.prepareStatement("SELECT person.person_id AS personId, first_name, last_name, todo_item.todo_id AS title, description, deadline, done, assignee_id " +
-                    "FROM person INNER JOIN todo_item ON person.person_id = todo_item.todo_id " +
-                    "WHERE UPPER (first_name) LIKE UPPER(CONCAT('%', ?, '%'))");
-            statement.setString(1, name);
+        try{
+            connection = getConnection();
+            statement = connection.prepareStatement("SELECT person_id, first_name, last_name FROM person WHERE first_name = ?");
+            statement.setString(1, inputName);
             resultSet = statement.executeQuery();
-            while (resultSet.next()){
-                people.add(resultSetToPerson(resultSet));
+            while(resultSet.next()){
+                person = new Person(
+                        resultSet.getInt(1),
+                        resultSet.getString(2),
+                        resultSet.getString(3));
+                personList.add(person);
             }
-        } catch (SQLException ex) {
-            ex.printStackTrace();
+        }catch (SQLException exception){
+            exception.printStackTrace();
         }finally {
-            closeAll(resultSet, statement, connection);
+            try {
+                assert resultSet != null;
+                resultSet.close();
+                statement.close();
+                connection.close();
+            } catch (SQLException exception) {
+                exception.printStackTrace();
+            }
         }
-
-        return people;
+        return personList;
     }
 
     @Override
     public Person update(Person person) {
-        if (person == null) throw new IllegalArgumentException("Person person was null");
-        if (person.getPersonId() == 0) throw new IllegalArgumentException("Person person was not yet created");
+        if(person == null) throw new IllegalArgumentException("Person was null");
+        if(person.getId() == 0) throw new IllegalArgumentException("Person is not created");
         Connection connection = null;
         PreparedStatement statement = null;
 
         try {
-            connection = ConnectionFactory.getConnection();
+            connection = getConnection();
             statement = connection.prepareStatement("UPDATE person SET first_name = ?, last_name = ? WHERE person_id = ?");
-            statement.setString(1, person.getFirstname().trim());
-            statement.setString(2, person.getLastname().trim());
-            statement.setString(3, String.valueOf(person.getPersonId()));
+            statement.setString(1, person.getFirstName());
+            statement.setString(2, person.getLastName());
+            statement.setInt(3, person.getId());
             statement.execute();
-        }catch (SQLException ex) {
+
+        } catch (SQLException ex) {
             ex.printStackTrace();
         }finally {
-            closeAll(statement, connection);
+            try {
+                assert statement != null;
+                statement.close();
+                connection.close();
+            } catch (SQLException exception) {
+                exception.printStackTrace();
+            }
         }
-
         return person;
     }
 
     @Override
     public boolean deleteById(int id) {
-        int rowsAffected = 0;
-        try (
-                Connection connection = ConnectionFactory.getConnection();
-                PreparedStatement statement = connection.prepareStatement("DELETE FROM person WHERE person_id = ?")
-                ) {
-            rowsAffected = statement.executeUpdate();
-        } catch (SQLException ex){
-            ex.printStackTrace();
+        int deleted = 0;
+        try
+        {
+            Connection connection = getConnection();
+            PreparedStatement statement = connection.prepareStatement("DELETE FROM person WHERE person_id = ?");
+            statement.setInt(1, id);
+            deleted = statement.executeUpdate();
+        } catch (SQLException exception) {
+            exception.printStackTrace();
         }
-
-        return rowsAffected > 0;
+        return deleted > 0;
     }
 
 }
